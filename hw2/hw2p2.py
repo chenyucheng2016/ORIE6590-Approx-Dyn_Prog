@@ -141,7 +141,7 @@ class Nmodel:
         dataSize = 50000
         data = np.zeros((4, dataSize)) #2 for state, 1 for action, 1 for reward 2 + 1 + 1 = 4
         state = init_state
-        epsilon = 0.4
+        epsilon = 0.5
         for i in range(dataSize):
             qs = QTable[state[0] ,state[1]]
             p_dist = np.zeros(self.actions.shape[0])
@@ -149,20 +149,69 @@ class Nmodel:
                 p_dist[j] = epsilon/(self.actions.shape[0] - 1.0)
             p_dist[np.argmax(qs)] = 1.0 - epsilon
             action_ind = np.nonzero(np.random.multinomial(1, p_dist))[0][0]
-            
-            print(action_ind)
-
+            data[0,i] = state[0]
+            data[1,i] = state[1]
+            data[2,i] = action_ind
+            data[3,i] = self.reward(state)
+            ns_dist = self.transition_prob(state,self.actions[action_ind])
+            s_dist = []
+            s_vals = []
+            for key in ns_dist.keys():
+                s_dist.append(ns_dist[key])
+                s_vals.append(key)
+            ns_ind = np.nonzero(np.random.multinomial(1, s_dist))[0][0]
+            next_state = [s_vals[ns_ind][0], s_vals[ns_ind][1]]
+            state = next_state
+        return data
 
 
     def Explore_via_Boltzmann(self, QTable, init_state):
-        dataSize = 50000
+        dataSize = 100000
         data = np.zeros((4, dataSize)) #2 for state, 1 for action, 1 for reward 2 + 1 + 1 = 4
+        state = init_state
+        T = 10
+        for i in range(dataSize):
+            qs = QTable[state[0], state[1]]
+            p_dist = np.zeros(self.actions.shape[0])
+            for j in range(self.actions.shape[0]):
+                p_dist[j] = np.exp(qs[j]/T)
+            p_dist = p_dist/np.sum(p_dist)
+            action_ind = np.nonzero(np.random.multinomial(1, p_dist))[0][0]
+            data[0,i] = state[0]
+            data[1,i] = state[1]
+            data[2,i] = action_ind
+            data[3,i] = self.reward(state)
+            ns_dist = self.transition_prob(state, self.actions[action_ind])
+            s_dist = []
+            s_vals = []
+            for key in ns_dist.keys():
+                s_dist.append(ns_dist[key])
+                s_vals.append(key)
+            ns_ind = np.nonzero(np.random.multinomial(1, s_dist))[0][0]
+            next_state = [s_vals[ns_ind][0], s_vals[ns_ind][1]]
+            state = next_state
+            print(state)
+        return data
+
 
     def Q_learning(self):
         QTable = np.random.rand(self.N+1, self.N+1, self.actions.shape[0])
-        self.Explore_via_EpsilonGreedy(QTable, [0,0])
+        for iter_out in range(90):
+            data = self.Explore_via_EpsilonGreedy(QTable, [0,0])
+            alpha = 0.1
+            for iter in range(data.shape[1] - 1):
+                state = [int(data[0, iter]), int(data[1, iter])]
+                nx_state = [int(data[0, iter+1]), int(data[1, iter+1])]
+                action_ind = int(data[2, iter])
+                r = data[3, iter]
+                QTable[state[0], state[1], action_ind] = (1 - alpha)*QTable[state[0], state[1], action_ind] + alpha*(r + self.gamma*np.max(QTable[nx_state[0], nx_state[1]]))
+            #Q to B
+            for i in range(self.N+1):
+                for j in range(self.N+1):
+                    self.valueTable[i,j] = np.max(QTable[i,j])
 
             
 if __name__ == "__main__":
     nmodel1 = Nmodel()
     nmodel1.Q_learning()
+    print(nmodel1.valueTable)
