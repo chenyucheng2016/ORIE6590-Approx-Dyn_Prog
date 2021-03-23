@@ -42,7 +42,7 @@ class GridWorld:
                             cmp_list.append(-1)
 
                         self.actions[i][j] = np.argmax(cmp_list)
-    def printACtionTable(self):
+    def printActionTable(self):
         for i in range(self.dim):
             for j in range(self.dim):
                 if (i == 0 and j == 1) or (i == 0 and j == 3):
@@ -62,4 +62,4 @@ if __name__ == "__main__":
     grid = GridWorld()
     grid.valueIteration()
     print(grid.grid)
-    grid.printACtionTable()
+    grid.printActionTable()
